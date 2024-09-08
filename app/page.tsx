@@ -1,113 +1,175 @@
-import Image from "next/image";
+'use client'
+import { Box, Button, Stack, TextField, Typography } from "@mui/material";
+import { useState } from "react";
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export default function Home() {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: 'assistant',
+      content: 'Hi I am your interview prep bot. How may I assist you today?'
+    }
+  ]);
+  
+  const [message, setMessage] = useState<string>('');
+
+  const sendMessage = async () => {
+    if (message.trim() === "") return; // Prevent sending empty messages
+
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { role: "user", content: message },
+      { role: "assistant", content: "" } // Placeholder for the assistant's response
+    ]);
+    setMessage(""); // Clear the input field
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify([...messages, { role: 'user', content: message }]),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let result = '';
+
+      if (reader) {
+        const processText = async ({ done, value }: ReadableStreamReadResult<Uint8Array>): Promise<string> => {
+          if (done) {
+            return result;
+          }
+
+          const text = decoder.decode(value || new Int8Array(), { stream: true });
+
+          setMessages((prevMessages) => {
+            let lastMessage = prevMessages[prevMessages.length - 1];
+            let otherMessages = prevMessages.slice(0, prevMessages.length - 1);
+            return [
+              ...otherMessages,
+              {
+                ...lastMessage,
+                content: lastMessage.content + text,
+              }
+            ];
+          });
+
+          result += text;
+
+          // Continue reading the stream
+          return reader.read().then(processText);
+        };
+
+        await reader.read().then(processText);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <Box
+      width={'100vw'}
+      height={"100vh"}
+      display={"flex"}
+      flexDirection={"column"}
+      justifyContent={"center"}
+      alignItems={"center"}>
+      <Stack
+        direction={"column"}
+        width={"600px"}
+        height={"750px"}
+        sx={{
+          border: '1px solid #e0e0e0',
+          borderRadius: '16px', 
+          boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.1)', 
+          backgroundColor: '#fff', 
+        }}
+        //p={2}
+        paddingTop= {0}
+        spacing={3}>
+        <Box
+          sx={{
+            backgroundColor: '#3f51b5', // Background color for header
+            padding: '16px',
+            borderTopLeftRadius: '16px', // Match the border radius of the container
+            borderTopRightRadius: '16px',
+            color: 'white',
+            textAlign: 'center', // Center the text
+          }}
+        >
+          <Typography
+            variant="h5"
+            
+            sx={{
+              fontWeight: 'bold',
+            }}
           >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+            Interview Prep Bot
+          </Typography>
+        </Box>
+        <Stack
+          direction={"column"}
+          spacing={2}
+          flexGrow={1}
+          overflow={"auto"}
+          maxHeight={"100%"}
+          sx={{
+            padding: 1,
+            '&::-webkit-scrollbar': {
+              width: '6px', 
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: '#ccc', 
+              borderRadius: '8px', 
+            },
+          }}>
+          {messages.map((message, index) => (
+            <Box
+              key={index}
+              display={"flex"}
+              justifyContent={message.role === 'assistant' ? 'flex-start' : "flex-end"}>
+              <Box
+                bgcolor={message.role === 'assistant' ? 'primary.main' : 'orange'}
+                padding={3}
+                borderRadius={16}
+                maxWidth={"80%"}
+                color={"white"}
+                boxShadow= {'0 1px 3px rgba(0, 0, 0, 0.2)'}
+                >
+                {message.content}
+              </Box>
+            </Box>
+          ))}
+        </Stack>
+        <Stack direction={"row"} spacing={2} sx={{ padding: 2 }}>
+          <TextField
+            label="Type your message..."
+            variant="outlined"
+            fullWidth
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            sx={{
+              borderRadius: '8px',
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px',
+              }
+            }} />
+          <Button variant="contained" onClick={sendMessage}>
+            Send
+          </Button>
+        </Stack>
+      </Stack>
+    </Box>
   );
 }
